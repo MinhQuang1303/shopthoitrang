@@ -1,0 +1,680 @@
+/*-- ==========================================
+-- DATABASE: shop_thoi_trang
+-- ==========================================
+
+CREATE DATABASE shop_thoi_trang;
+USE shop_thoi_trang;
+
+-- 1. Bảng Users (Người dùng)
+CREATE TABLE Users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(15),
+    address TEXT,
+    role ENUM('customer', 'admin') DEFAULT 'customer',
+    is_verified BOOLEAN DEFAULT FALSE,
+    points INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_role (role)
+) ENGINE=InnoDB;
+
+-- 2. Bảng Categories (Danh mục)
+CREATE TABLE Categories (
+    category_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_id INT DEFAULT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES Categories(category_id) ON DELETE SET NULL,
+    INDEX idx_parent (parent_id)
+) ENGINE=InnoDB;
+
+-- 3. Bảng Products (Sản phẩm)
+CREATE TABLE Products (
+    product_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    description TEXT,
+    base_price DECIMAL(10,2) NOT NULL,
+    discount_percent INT DEFAULT 0,
+    is_hot BOOLEAN DEFAULT FALSE,
+    is_bestseller BOOLEAN DEFAULT FALSE,
+    thumbnail_url VARCHAR(255), -- ảnh đại diện chính
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (category_id) REFERENCES Categories(category_id) ON DELETE CASCADE,
+    INDEX idx_category (category_id),
+    INDEX idx_hot (is_hot),
+    INDEX idx_bestseller (is_bestseller)
+) ENGINE=InnoDB;
+
+CREATE TABLE Product_Images (
+    image_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    is_main BOOLEAN DEFAULT FALSE, -- đánh dấu ảnh chính (1 ảnh chính, nhiều ảnh phụ)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    INDEX idx_product_image (product_id)
+) ENGINE=InnoDB;
+
+-- 4. Bảng Product_Variants (Biến thể sản phẩm)
+-- 4. Bảng Product_Variants (Biến thể sản phẩm)
+CREATE TABLE Product_Variants (
+    variant_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    color VARCHAR(50),
+    size VARCHAR(20),
+    stock INT DEFAULT 0,
+    sku VARCHAR(50) UNIQUE,
+    price_adjustment DECIMAL(10,2) DEFAULT 0, -- nếu muốn giá khác chút theo biến thể
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    INDEX idx_product (product_id),
+    INDEX idx_stock (stock)
+) ENGINE=InnoDB;
+
+
+-- 5. Bảng Inventory_Transactions (Lịch sử nhập/xuất kho)
+CREATE TABLE Inventory_Transactions (
+    transaction_id INT PRIMARY KEY AUTO_INCREMENT,
+    variant_id INT NOT NULL,
+    transaction_type ENUM('in', 'out') NOT NULL,
+    quantity INT NOT NULL,
+    note TEXT,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (variant_id) REFERENCES Product_Variants(variant_id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES Users(user_id) ON DELETE SET NULL,
+    INDEX idx_variant (variant_id),
+    INDEX idx_type (transaction_type)
+) ENGINE=InnoDB;
+
+-- 6. Bảng Cart (Giỏ hàng)
+CREATE TABLE Cart (
+    cart_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_cart (user_id)
+) ENGINE=InnoDB;
+
+-- 7. Bảng Cart_Items (Chi tiết giỏ hàng)
+CREATE TABLE Cart_Items (
+    cart_item_id INT PRIMARY KEY AUTO_INCREMENT,
+    cart_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cart_id) REFERENCES Cart(cart_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES Product_Variants(variant_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_cart_variant (cart_id, variant_id)
+) ENGINE=InnoDB;
+
+-- 8. Bảng Wishlist (Danh sách yêu thích)
+CREATE TABLE Wishlist (
+    wishlist_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_product (user_id, product_id)
+) ENGINE=InnoDB;
+
+/*
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    order_code VARCHAR(30) UNIQUE NOT NULL, -- Tăng độ dài cho mã đơn hàng
+    total_amount DECIMAL(10,2) NOT NULL,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    final_amount DECIMAL(10,2) NOT NULL,
+    status ENUM('pending', 'confirmed', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+    payment_method ENUM('cod', 'momo', 'vnpay', 'zalopay') DEFAULT 'cod',
+    shipping_address TEXT NOT NULL,
+    shipping_phone VARCHAR(15) NOT NULL,
+    shipping_name VARCHAR(100) NOT NULL,
+    note TEXT,
+    confirmed_at TIMESTAMP NULL,
+    delivered_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_status (status),
+    INDEX idx_code (order_code)
+) ENGINE=InnoDB;
+
+-- Bảng Order_Details (Chi tiết đơn hàng)
+-- Giả định bảng Product_Variants đã tồn tại
+CREATE TABLE Order_Details (
+    detail_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    color VARCHAR(50),
+    size VARCHAR(20),
+    price DECIMAL(10,2) NOT NULL,
+    quantity INT NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES Product_Variants(variant_id) ON DELETE RESTRICT
+) ENGINE=INNODB;*/
+
+-- 9. Bảng Orders (Đơn hàng)
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    order_code VARCHAR(20) UNIQUE NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    final_amount DECIMAL(10,2) NOT NULL,
+    status ENUM('pending', 'confirmed', 'shipping', 'delivered', 'cancelled') DEFAULT 'pending',
+    payment_method ENUM('cod', 'momo_qr', 'momo_atm') DEFAULT 'cod',
+    shipping_address TEXT NOT NULL,
+    shipping_phone VARCHAR(15) NOT NULL,
+    shipping_name VARCHAR(100) NOT NULL,
+    note TEXT,
+    confirmed_at TIMESTAMP NULL,
+    delivered_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    momo_trans_id VARCHAR(50) DEFAULT NULL, -- lưu transaction MoMo
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_status (status),
+    INDEX idx_code (order_code)
+) ENGINE=InnoDB;
+
+
+-- 10. Bảng Order_Details (Chi tiết đơn hàng)
+CREATE TABLE Order_Details (
+    detail_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    color VARCHAR(50),
+    size VARCHAR(20),
+    price DECIMAL(10,2) NOT NULL,
+    quantity INT NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES Product_Variants(variant_id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- 11. Bảng Payments (Thanh toán)
+CREATE TABLE Payments (
+    payment_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    payment_method ENUM('cod', 'momo_qr', 'momo_atm') NOT NULL,
+    transaction_id VARCHAR(100) DEFAULT NULL,   -- lưu mã giao dịch MoMo
+    amount DECIMAL(10,2) NOT NULL,
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    payment_data TEXT,                           -- lưu raw data MoMo JSON
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    INDEX idx_order (order_id),
+    INDEX idx_transaction (transaction_id)
+) ENGINE=InnoDB;
+
+-- 12. Bảng Vouchers (Mã giảm giá)
+CREATE TABLE Vouchers (
+    voucher_id INT PRIMARY KEY AUTO_INCREMENT,
+    voucher_code VARCHAR(50) UNIQUE NOT NULL,
+    discount_percent INT NOT NULL,
+    min_order_amount DECIMAL(10,2) DEFAULT 0,
+    max_discount_amount DECIMAL(10,2),
+    usage_limit INT DEFAULT 0,
+    used_count INT DEFAULT 0,
+    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid_to TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_code (voucher_code),
+    INDEX idx_active (is_active)
+) ENGINE=InnoDB;
+
+-- 13. Bảng Voucher_Usage (Lịch sử sử dụng voucher)
+CREATE TABLE Voucher_Usage (
+    usage_id INT PRIMARY KEY AUTO_INCREMENT,
+    voucher_id INT NOT NULL,
+    user_id INT NOT NULL,
+    order_id INT NOT NULL,
+    discount_amount DECIMAL(10,2) NOT NULL,
+    used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (voucher_id) REFERENCES Vouchers(voucher_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    INDEX idx_voucher (voucher_id),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB;
+
+-- 14. Bảng Reviews (Đánh giá sản phẩm)
+CREATE TABLE Reviews (
+    review_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    order_id INT NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    is_approved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    INDEX idx_product (product_id),
+    INDEX idx_approved (is_approved)
+) ENGINE=InnoDB;
+
+-- 15. Bảng Points (Điểm thưởng)
+CREATE TABLE Points (
+    point_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    order_id INT,
+    points INT NOT NULL,
+    type ENUM('earn', 'redeem') NOT NULL,
+    description VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE SET NULL,
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB;
+
+-- 16. Bảng Notifications (Thông báo)
+CREATE TABLE Notifications (
+    notification_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('order', 'promotion', 'system') DEFAULT 'system',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_read (is_read)
+) ENGINE=InnoDB;
+
+-- 17. Bảng Events (Sự kiện/Tin tức)
+CREATE TABLE Events (
+    event_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    image_url VARCHAR(255),
+    event_date DATE,
+    is_published BOOLEAN DEFAULT TRUE,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES Users(user_id) ON DELETE SET NULL,
+    INDEX idx_published (is_published)
+) ENGINE=InnoDB;
+
+-- 18. Bảng Admin_Logs (Nhật ký hoạt động Admin)
+CREATE TABLE Admin_Logs (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    admin_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    table_name VARCHAR(50),
+    record_id INT,
+    details TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_admin (admin_id),
+    INDEX idx_action (action)
+) ENGINE=InnoDB;
+
+-- 19. Bảng Password_OTP (Mã OTP)
+CREATE TABLE Password_OTP (
+    otp_id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    type ENUM('register', 'forgot_password', 'change_password') NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_otp (otp_code),
+    INDEX idx_expires (expires_at)
+) ENGINE=InnoDB;
+
+-- ==========================================
+-- DỮ LIỆU MẪU
+-- ==========================================
+
+-- Admin mặc định (password: admin123)
+INSERT INTO Users (email, password, full_name, phone, role, is_verified) VALUES
+('dmq130403@shop.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', '0123456789', 'admin', TRUE);
+
+-- Danh mục mẫu
+-- ===============================
+-- DANH MỤC
+-- ===============================
+INSERT INTO Categories (category_name, description) VALUES
+('Áo Nam', 'Các loại áo dành cho nam'),
+('Quần Nam', 'Các loại quần dành cho nam'),
+('Áo Nữ', 'Các loại áo dành cho nữ'),
+('Quần Nữ', 'Các loại quần dành cho nữ'),
+('Váy Nữ', 'Các loại váy dành cho nữ');
+
+-- ===== ÁO NAM (1) =====
+INSERT INTO Products (category_id, product_name, description, base_price, discount_percent, is_hot, thumbnail_url)
+VALUES
+(1, 'Áo Nam A1', 'Áo thun nam basic, chất liệu cotton mềm mịn.', 199000, 5, TRUE, '/a1.jpg'),
+(1, 'Áo Nam A2', 'Áo polo nam cổ bẻ.', 259000, 10, FALSE, '/a2.jpg'),
+(1, 'Áo Nam A3', 'Áo sơ mi nam công sở.', 299000, 0, TRUE, '/a3.jpg'),
+(1, 'Áo Nam A4', 'Áo khoác jean nam cá tính.', 459000, 15, TRUE, '/a4.jpg'),
+(1, 'Áo Nam A5', 'Áo hoodie nam thời trang.', 399000, 10, TRUE, '/a5.jpg'),
+(1, 'Áo Nam A6', 'Áo sweater nam basic.', 329000, 5, FALSE, '/a6.jpg'),
+(1, 'Áo Nam A7', 'Áo tanktop tập gym.', 179000, 0, FALSE, '/a7.jpg'),
+(1, 'Áo Nam A8', 'Áo khoác gió chống gió, nhẹ.', 349000, 10, TRUE, '/a8.jpg'),
+(1, 'Áo Nam A9', 'Áo vest nam cao cấp.', 899000, 15, TRUE, '/a9.jpg');
+
+-- ===== QUẦN NAM (2) =====
+INSERT INTO Products (category_id, product_name, description, base_price, discount_percent, is_hot, thumbnail_url)
+VALUES
+(2, 'Quần Nam Q1', 'Quần jean slim fit.', 499000, 10, TRUE, '/q1.jpg'),
+(2, 'Quần Nam Q2', 'Quần tây nam công sở.', 399000, 5, FALSE, '/q2.jpg'),
+(2, 'Quần Nam Q3', 'Quần jogger thể thao.', 259000, 5, TRUE, '/q3.jpg'),
+(2, 'Quần Nam Q4', 'Quần kaki trơn dễ phối.', 329000, 0, FALSE, '/q4.jpg'),
+(2, 'Quần Nam Q5', 'Quần short thể thao.', 199000, 5, FALSE, '/q5.jpg'),
+(2, 'Quần Nam Q6', 'Quần jean rách gối.', 549000, 15, TRUE, '/q6.jpg'),
+(2, 'Quần Nam Q7', 'Quần jogger cargo túi hộp.', 379000, 10, TRUE, '/q7.jpg'),
+(2, 'Quần Nam Q8', 'Quần tây nam trơn đen.', 359000, 5, FALSE, '/q8.jpg'),
+(2, 'Quần Nam Q9', 'Quần short jean.', 249000, 0, TRUE, '/q9.jpg'),
+(2, 'Quần Nam Q10', 'Quần thể thao ba sọc.', 239000, 0, FALSE, '/q10.jpg');
+
+-- ===== ÁO NỮ (3) =====
+INSERT INTO Products (category_id, product_name, description, base_price, discount_percent, is_hot, thumbnail_url)
+VALUES
+(3, 'Áo Nữ AN1', 'Áo thun nữ form rộng.', 199000, 0, TRUE, '/an2.jpg'),
+(3, 'Áo Nữ AN2', 'Áo sơ mi công sở thanh lịch.', 289000, 5, TRUE, '/an1.jpeg'),
+(3, 'Áo Nữ AN3', 'Áo crop top cá tính.', 179000, 0, TRUE, '/an3.jpg'),
+(3, 'Áo Nữ AN4', 'Áo dài tay basic.', 249000, 10, FALSE, '/an4.jpg'),
+(3, 'Áo Nữ AN5', 'Áo hoodie nữ.', 369000, 15, TRUE, '/an5.jpg'),
+(3, 'Áo Nữ AN6', 'Áo vest nữ công sở.', 499000, 10, TRUE, '/an6.jpg');
+
+-- ===== QUẦN NỮ (4) =====
+INSERT INTO Products (category_id, product_name, description, base_price, discount_percent, is_hot, thumbnail_url)
+VALUES
+(4, 'Quần Nữ QN1', 'Quần jean ống rộng.', 399000, 15, TRUE, '/qn1.jpg'),
+(4, 'Quần Nữ QN2', 'Quần tây công sở.', 359000, 5, TRUE, '/qn2.jpg'),
+(4, 'Quần Nữ QN3', 'Quần short thoải mái.', 219000, 0, FALSE, '/qn3.jpg'),
+(4, 'Quần Nữ QN4', 'Quần jogger nữ.', 279000, 10, TRUE, '/qn4.jpg'),
+(4, 'Quần Nữ QN5', 'Quần legging thể thao.', 249000, 0, FALSE, '/qn5.jpg'),
+(4, 'Quần Nữ QN6', 'Quần jean skinny nữ.', 379000, 15, TRUE, '/qn6.jpg');
+
+-- ===== COMBO ĐỒ NỮ (5) =====
+INSERT INTO Products (category_id, product_name, description, base_price, discount_percent, is_hot, thumbnail_url)
+VALUES
+(5, 'Combo CB1', 'Set áo và váy nữ thanh lịch.', 499000, 10, TRUE, '/cb1.jpeg'),
+(5, 'Combo CB2', 'Combo thể thao năng động.', 459000, 10, TRUE, '/cb2.jpg'),
+(5, 'Combo CB3', 'Set đồ dạo phố nữ tính.', 419000, 5, TRUE, '/cb3.jpg'),
+(5, 'Combo CB4', 'Combo công sở hiện đại.', 559000, 15, TRUE, '/cb4.jpeg'),
+(5, 'Combo CB5', 'Set váy áo nhẹ nhàng.', 489000, 5, FALSE, '/cb5.jpeg'),
+(5, 'Combo CB6', 'Combo đồ ngủ dễ thương.', 299000, 0, FALSE, '/cb6.jpg');
+
+-- ===================================
+-- ẢNH PHỤ CHO ÁO NAM A1 (3 ẢNH)
+-- ===================================
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(1, '/a1.jpg', TRUE),
+(1, '/a11.jpg', FALSE),
+(1, '/a111.jpg', FALSE);
+-- ẢNH PHỤ CHO ÁO NAM A2 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(2, '/a2.jpg', TRUE),
+(2, '/a22.jpg', FALSE),
+(2, '/a222.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A3 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(3, '/a3.jpg', TRUE),
+(3, '/a33.jpg', FALSE),
+(3, '/a333.jpg', FALSE);
+-- ẢNH PHỤ CHO ÁO NAM A4 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(4, '/a4.jpg', TRUE),
+(4, '/a44.jpg', FALSE),
+(4, '/a444.jpg', FALSE);
+-- ẢNH PHỤ CHO ÁO NỮ AN1 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(20, '/an1.jpg', TRUE),
+(20, '/an11.jpg', FALSE),
+(20, '/an111.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NỮ AN2 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(21, '/an2.jpg', TRUE),
+(21, '/an22.jpg', FALSE),
+(21, '/an222.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NỮ AN3 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(22, '/an3.jpg', TRUE),
+(22, '/an33.jpg', FALSE),
+(22, '/an333.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NỮ AN4 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(23, '/an4.jpg', TRUE),
+(23, '/an44.jpg', FALSE),
+(23, '/an444.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NỮ AN5 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(24, '/an5.jpg', TRUE),
+(24, '/an55.jpg', FALSE),
+(24, '/an555.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NỮ AN6 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(25, '/an6.jpg', TRUE),
+(25, '/an66.jpg', FALSE),
+(25, '/an666.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NỮ QN1 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(26, '/qn1.jpg', TRUE),
+(26, '/qn11.jpg', FALSE),
+(26, '/qn111.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NỮ QN2 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(27, '/qn2.jpg', TRUE),
+(27, '/qn22.jpg', FALSE),
+(27, '/qn222.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NỮ QN3 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(28, '/qn3.jpg', TRUE),
+(28, '/qn33.jpg', FALSE),
+(28, '/qn333.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NỮ QN4 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(29, '/qn4.jpg', TRUE),
+(29, '/qn44.jpg', FALSE),
+(29, '/qn444.jpg', FALSE);
+-- ẢNH PHỤ CHO QUẦN NỮ QN5 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(30, '/qn5.jpg', TRUE),
+(30, '/qn55.jpg', FALSE),
+(30, '/qn555.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NỮ QN6 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(31, '/qn6.jpg', TRUE),
+(31, '/qn66.jpg', FALSE),
+(31, '/qn666.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB1 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(32, '/cb1.jpg', TRUE),
+(32, '/cb11.jpg', FALSE),
+(32, '/cb111.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB2 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(33, '/cb2.jpg', TRUE),
+(33, '/cb22.jpg', FALSE),
+(33, '/cb222.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB3 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(34, '/cb3.jpg', TRUE),
+(34, '/cb33.jpg', FALSE),
+(34, '/cb333.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB4 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(35, '/cb4.jpg', TRUE),
+(35, '/cb44.jpg', FALSE),
+(35, '/cb444.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB5 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(36, '/cb5.jpg', TRUE),
+(36, '/cb55.jpg', FALSE),
+(36, '/cb555.jpg', FALSE);
+
+-- ẢNH PHỤ CHO COMBO CB6 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(37, '/cb6.jpg', TRUE),
+(37, '/cb66.jpg', FALSE),
+(37, '/cb666.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A5 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(5, '/a5.jpg', TRUE),
+(5, '/a55.jpg', FALSE),
+(5, '/a555.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A6 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(6, '/a6.jpg', TRUE),
+(6, '/a66.jpg', FALSE),
+(6, '/a666.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A7 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(7, '/a7.jpg', TRUE),
+(7, '/a77.jpg', FALSE),
+(7, '/a777.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A8 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(8, '/a8.jpg', TRUE),
+(8, '/a88.jpg', FALSE),
+(8, '/a888.jpg', FALSE);
+
+-- ẢNH PHỤ CHO ÁO NAM A9 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(9, '/a9.jpg', TRUE),
+(9, '/a99.jpg', FALSE),
+(9, '/a999.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q1 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(10, '/q1.jpg', TRUE),
+(10, '/q11.jpg', FALSE),
+(10, '/q111.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q2 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(11, '/q2.jpg', TRUE),
+(11, '/q222.jpg', FALSE),
+(11, '/q222.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q3 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(12, '/q3.jpg', TRUE),
+(12, '/q33.jpg', FALSE),
+(12, '/q333.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q4 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(13, '/q4.jpg', TRUE),
+(13, '/q44.jpg', FALSE),
+(13, '/q444.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q5 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(14, '/q5.jpg', TRUE),
+(14, '/q55.jpg', FALSE),
+(14, '/q555.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q6 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(15, '/q6.jpg', TRUE),
+(15, '/q66.jpg', FALSE),
+(15, '/q666.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q7 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(16, '/q7.jpg', TRUE),
+(16, '/q77.jpg', FALSE),
+(16, '/q777.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q8 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(17, '/q8.jpg', TRUE),
+(17, '/q88.jpg', FALSE),
+(17, '/q888.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q9 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(18, '/q9.jpg', TRUE),
+(18, '/q99.jpg', FALSE),
+(18, '/q999.jpg', FALSE);
+
+-- ẢNH PHỤ CHO QUẦN NAM Q10 (3 ẢNH)
+INSERT INTO Product_Images (product_id, image_url, is_main) VALUES
+(19, '/q10.jpg', TRUE),
+(19, '/q101.jpg', FALSE),
+(19, '/q102.jpg', FALSE);
+
+-- ===================================
+-- BIẾN THỂ MẪU (CHO ÁO NAM A1)
+-- ===================================
+INSERT INTO Product_Variants (product_id, color, size, stock, sku) VALUES
+(1, 'Trắng', 'M', 50, 'A1-M-TRANG'),
+(1, 'Trắng', 'L', 40, 'A1-L-TRANG'),
+(1, 'Đen', 'M', 60, 'A1-M-DEN'),
+(1, 'Đen', 'L', 45, 'A1-L-DEN');
+
+
+INSERT INTO Events (title, content, image_url, event_date, is_published, created_by)
+VALUES
+('Ra Mắt Bộ Sưu Tập Xuân 2025',
+ 'Khám phá bộ sưu tập xuân 2025 với những thiết kế thời thượng, trẻ trung và đầy sắc màu.',
+ 'https://images.unsplash.com/photo-1521335629791-ce4aec67dd53?auto=format&fit=crop&w=900&q=80',
+ '2026-02-15', TRUE, NULL),
+
+('Flash Sale Mừng Năm Mới – Giảm Giá Lên Đến 70%',
+ 'Cơ hội mua sắm siêu tiết kiệm cùng hàng trăm sản phẩm giảm giá sốc nhân dịp năm mới.',
+ 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80',
+ '2026-01-01', TRUE, NULL),
+
+('Tuần Lễ Thời Trang Việt Nam 2025',
+ 'ShopThoiTrang đồng hành cùng Tuần lễ thời trang Việt Nam với nhiều chương trình đặc sắc.',
+ 'https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=900&q=80',
+ '2026-09-25', TRUE, NULL),
+
+('Ưu Đãi Dành Cho Thành Viên Mới',
+ 'Tham gia thành viên của ShopThoiTrang để nhận ngay ưu đãi giảm giá 10% cho đơn hàng đầu tiên!',
+ 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80',
+ '2026-03-10', TRUE, NULL),
+
+('Workshop Mix & Match – Phong Cách Của Bạn',
+ 'Tham gia workshop đặc biệt giúp bạn học cách phối đồ tinh tế và tạo phong cách riêng biệt.',
+ 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=900&q=80',
+ '2026-04-18', TRUE, NULL);usersusers
