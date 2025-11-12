@@ -1,0 +1,158 @@
+/* chat_box/chat.css */
+
+/* --- Cố định Vị trí Chat Box --- */
+.chat-container {
+    /* Đảm bảo Chatbox luôn hiển thị ở góc phải dưới */
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px; 
+    z-index: 1000; 
+    
+    /* Giao diện chung */
+    width: 100%;
+    max-width: 350px; 
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background-color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+h2 {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    margin: 0;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    font-size: 18px;
+    text-align: center;
+}
+
+.chat-box {
+    height: 400px; /* Chiều cao cố định */
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-input {
+    display: flex;
+    padding: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.chat-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px;
+    outline: none;
+}
+
+.chat-input button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+/* --- Styling cho tin nhắn và sản phẩm (Giữ nguyên) --- */
+.user-message, .ai-message {
+    max-width: 85%;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+/* ... (các style khác cho .user-message, .ai-message, .product-card, vv.) ... *//* chat_box/chat.css */
+
+/* --- Cố định Vị trí Chat Box --- */
+.chat-container {
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px; 
+    z-index: 1000; 
+    
+    /* Giao diện chung */
+    width: 100%;
+    max-width: 350px; 
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background-color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+h2 {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    margin: 0;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    font-size: 18px;
+    text-align: center;
+}
+
+.chat-box {
+    height: 400px; /* Chiều cao cố định */
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-input {
+    display: flex;
+    padding: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.chat-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px;
+    outline: none;
+}
+
+.chat-input button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+/* --- Styling cho tin nhắn và sản phẩm (Giữ nguyên) --- */
+.user-message, .ai-message {
+    max-width: 85%;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+/* Thêm các style chi tiết cho sản phẩm và giá nếu cần */
+.ai-product-message {
+    align-self: flex-start;
+    background-color: #f8f8f8; 
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    width: 100%;
+}
+.product-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; 
+    margin-top: 10px;
+}
+.product-card {
+    width: calc(50% - 5px); 
+    /* ... style khác ... */
+}
