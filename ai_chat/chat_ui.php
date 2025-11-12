@@ -1,23 +1,17 @@
-<div id="chat-ai">
-  <div id="chat-toggle">
-    <i class="fa fa-comments"></i>
-  </div>
-
-  <div id="chat-window" class="hidden">
-    <div id="chat-header">
-      <span>Trợ lý thời trang AI</span>
-      <button id="chat-close">&times;</button>
-    </div>
-    <div id="chat-body">
-      <div id="chat-messages">
-        <div class="ai-msg">
-          👋 Xin chào! Mình là trợ lý AI. Bạn muốn tìm sản phẩm gì hôm nay?
+<div class="ai-chat-widget">
+    <div class="ai-header">
+        <img src="assets/images/san_pham/AI.jpg" alt="AI">
+        <div>
+            <strong>Trợ lý thời trang</strong>
+            <small>Đang online • Hỏi gì cũng trả lời</small>
         </div>
-      </div>
     </div>
-    <div id="chat-input-area">
-      <input type="text" id="chat-input" placeholder="Nhập câu hỏi của bạn...">
-      <button id="chat-send"><i class="fa fa-paper-plane"></i></button>
+    <div id="ai-messages"></div>
+    <div class="ai-input">
+        <input type="text" id="ai-input" placeholder="Hỏi về size, giá, phối đồ...">
+        <button id="ai-send">Send</button>
     </div>
-  </div>
 </div>
+
+<link rel="stylesheet" href="ai_chat/chat.css?v=<?= time() ?>">
+<script src="ai_chat/chat.js?v=<?= time() ?>"></script>

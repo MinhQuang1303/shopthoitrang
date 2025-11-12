@@ -1,35 +1,46 @@
 <?php
-require_once __DIR__ . '/../includes/ket_noi_db.php';
+// ai_chat/process_chat.php
 
-header('Content-Type: text/html; charset=UTF-8');
+// --- SỬA LỖI QUAN TRỌNG ---
+// 1. Nạp file cấu hình (để có API Key, DB config và nạp Composer)
+require_once __DIR__ . '/../includes/cau_hinh.php'; // ĐÚNG
+// 2. Nạp file kết nối DB (để tạo biến $pdo)
+require_once __DIR__ . '/../includes/ket_noi_db.php'; 
+// 3. Nạp file helper (sau khi đã có $pdo và API keys)
+require_once __DIR__ . '/ai_helper.php';
+// --- KẾT THÚC SỬA LỖI ---
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $msg = trim($_POST['message'] ?? '');
-    if ($msg === '') exit('Vui lòng nhập câu hỏi.');
+session_start();
 
-    // Gợi ý: Nhận dạng ý định người dùng
-    if (preg_match('/áo|quần|váy|giày|sơ mi|váy|áo khoác|túi/i', $msg)) {
-        // Tìm sản phẩm có tên liên quan
-$stmt = $pdo->prepare("SELECT * FROM Products WHERE product_name LIKE ?");
-        $stmt->execute(['%' . $msg . '%']);
-        $results = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-        if ($results) {
-            echo "Mình gợi ý cho bạn một vài sản phẩm phù hợp:<br><ul>";
-            foreach ($results as $sp) {
-                echo "<li>🛍️ " . htmlspecialchars($sp) . "</li>";
-            }
-            echo "</ul>";
-        } else {
-            echo "Hiện tại mình chưa tìm thấy sản phẩm phù hợp, bạn thử mô tả cụ thể hơn nhé!";
-        }
-    } elseif (preg_match('/đổi trả|bảo hành/i', $msg)) {
-        echo "🧾 Chính sách đổi trả: Bạn có thể đổi trả sản phẩm trong vòng 7 ngày kể từ khi nhận hàng nếu còn nguyên tem, tag và chưa qua sử dụng.";
-    } elseif (preg_match('/thanh toán|momo|chuyển khoản/i', $msg)) {
-        echo "💳 Shop hỗ trợ thanh toán qua MoMo, chuyển khoản ngân hàng và COD (nhận hàng trả tiền).";
-    } elseif (preg_match('/giao hàng|ship|vận chuyển/i', $msg)) {
-        echo "🚚 Thời gian giao hàng thường từ 2–4 ngày tuỳ khu vực. Đơn nội thành thường giao trong ngày.";
-    } else {
-        echo "🤖 Mình chưa hiểu rõ câu hỏi. Bạn có thể hỏi về sản phẩm, cách thanh toán, đổi trả hoặc giao hàng nhé!";
-    }
+// Chỉ chấp nhận POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    // Trả về JSON hợp lệ
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['reply' => 'Method not allowed']);
+    exit;
 }
+
+// Đặt header JSON ngay từ đầu
+header('Content-Type: application/json; charset=utf-8');
+
+$message = trim($_POST['message'] ?? '');
+if (empty($message)) {
+    echo json_encode(['reply' => 'Bạn chưa nhập gì mà 🙄']);
+    exit;
+}
+
+$user_id = $_SESSION['user_id'] ?? null;
+
+// Lấy câu trả lời từ AI
+$reply = get_ai_reply($message);
+
+// Lưu vào CSDL (nếu $user_id tồn tại)
+if ($user_id) {
+    save_chat($user_id, $message, $reply);
+}
+
+// Trả về JSON
+// Không cần ob_start/ob_end_clean nếu bạn không echo gì khác
+echo json_encode(['reply' => $reply]);
+exit;

@@ -1,42 +1,41 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.getElementById("chat-toggle");
-  const chatWindow = document.getElementById("chat-window");
-  const closeBtn = document.getElementById("chat-close");
-  const sendBtn = document.getElementById("chat-send");
-  const input = document.getElementById("chat-input");
-  const messages = document.getElementById("chat-messages");
+const box = document.getElementById('ai-messages');
+const input = document.getElementById('ai-input');
+const send = document.getElementById('ai-send');
 
-  toggle.onclick = () => chatWindow.classList.toggle("hidden");
-  closeBtn.onclick = () => chatWindow.classList.add("hidden");
+function add(msg, type) {
+    const div = document.createElement('div');
+    div.className = `ai-msg ${type}`;
+    div.innerHTML = msg;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
 
-  sendBtn.onclick = sendMessage;
-  input.addEventListener("keypress", e => {
-    if (e.key === "Enter") sendMessage();
-  });
+send.onclick = () => sendMsg();
+input.addEventListener('keypress', e => e.key === 'Enter' && sendMsg());
 
-  function appendMessage(content, type) {
-    const div = document.createElement("div");
-    div.className = type === "user" ? "user-msg" : "ai-msg";
-    div.innerHTML = content;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-  }
+function sendMsg() {
+    const msg = input.value.trim();
+    if (!msg) return;
+    add(msg, 'user');
+    input.value = '';
+    add('AI đang gõ...', 'ai');
 
-  function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-    appendMessage(text, "user");
-    input.value = "";
-
-    fetch("ai_chat/process_chat.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "message=" + encodeURIComponent(text)
+    fetch('ai_chat/process_chat.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'message=' + encodeURIComponent(msg)
     })
-      .then(res => res.text())
-      .then(reply => appendMessage(reply, "ai"))
-      .catch(() =>
-        appendMessage("⚠️ Xin lỗi, hệ thống đang bận. Thử lại sau!", "ai")
-      );
-  }
-});
+    .then(r => r.json())
+    .then(data => {
+        box.lastChild.remove();
+        add(data.reply || 'Mình chưa hiểu, hỏi lại nha', 'ai');
+    })
+    .catch(() => {
+        box.lastChild.remove();
+        add('Lỗi mạng rồi, thử lại nha', 'ai');
+    });
+}
+
+setTimeout(() => {
+    add('Chào bạn!<br>Mình là trợ lý thời trang đây<br>Bạn cần tìm kiếm về size, giá, phối đồ thì nhắn mình nha', 'ai');
+}, 1000);
