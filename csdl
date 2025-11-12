@@ -242,6 +242,18 @@ CREATE TABLE Vouchers (
     INDEX idx_active (is_active)
 ) ENGINE=InnoDB;
 
+CREATE TABLE Hot_Keywords (
+    keyword_id INT PRIMARY KEY AUTO_INCREMENT,
+    keyword_text VARCHAR(100) UNIQUE NOT NULL,
+    description VARCHAR(255),
+    search_count INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_keyword_text (keyword_text),
+    INDEX idx_active (is_active)
+) ENGINE=InnoDB;
+
 -- 13. Bảng Voucher_Usage (Lịch sử sử dụng voucher)
 CREATE TABLE Voucher_Usage (
     usage_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -345,6 +357,20 @@ CREATE TABLE Password_OTP (
     INDEX idx_otp (otp_code),
     INDEX idx_expires (expires_at)
 ) ENGINE=InnoDB;
+
+CREATE TABLE Keyword_Product_Mapping (
+    mapping_id INT PRIMARY KEY AUTO_INCREMENT,
+    keyword_id INT NOT NULL,
+    product_id INT NOT NULL,
+    priority INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (keyword_id) REFERENCES Hot_Keywords(keyword_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_keyword_product (keyword_id, product_id)
+) ENGINE=InnoDB;
+
+
 
 -- ==========================================
 -- DỮ LIỆU MẪU
@@ -677,4 +703,162 @@ VALUES
 ('Workshop Mix & Match – Phong Cách Của Bạn',
  'Tham gia workshop đặc biệt giúp bạn học cách phối đồ tinh tế và tạo phong cách riêng biệt.',
  'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=900&q=80',
- '2026-04-18', TRUE, NULL);usersusers
+ '2026-04-18', TRUE, NULL);
+
+
+
+
+
+
+
+
+
+
+
+ INSERT INTO Hot_Keywords (keyword_text, description, search_count, is_active) VALUES
+('áo thun unisex', 'Các mẫu áo thun không giới hạn giới tính', 150, TRUE),
+('giảm giá 50%', 'Các sản phẩm đang có mức giảm giá mạnh 50%', 220, TRUE),
+('quần jean rách', 'Các mẫu quần jean có thiết kế rách, bụi bặm', 85, TRUE),
+('sản phẩm mới', 'Các sản phẩm mới nhập về trong tuần', 190, TRUE),
+('best seller', 'Các sản phẩm bán chạy nhất mọi thời đại', 300, TRUE),
+('áo sơ mi trắng', 'Các mẫu áo sơ mi màu trắng cơ bản', 120, TRUE),
+('áo', 'Tất cả sản phẩm áo hot nhất trong cửa hàng', 500, TRUE),
+('quần', 'Tất cả sản phẩm quần hot nhất trong cửa hàng', 450, TRUE),
+('quần jean', 'Các loại quần jean (denim) thời trang', 320, TRUE),
+('quần tây', 'Các loại quần tây công sở, lịch sự', 280, TRUE),
+('áo thun', 'Tất cả các loại áo thun cơ bản', 350, TRUE),
+('áo nữ form rộng', 'Các mẫu áo thun và áo kiểu nữ form rộng thoải mái', 50, TRUE),
+('quần ống rộng', 'Các mẫu quần jean, quần tây ống rộng đang là xu hướng', 110, TRUE),
+('áo sơ mi công sở', 'Áo sơ mi chuyên dùng cho môi trường văn phòng (Nam & Nữ)', 140, TRUE),
+('combo siêu rẻ', 'Các set/combo đồ nữ giúp tiết kiệm chi phí', 95, TRUE),
+('hoodie nam', 'Áo hoodie nam chất liệu dày dặn, ấm áp', 70, TRUE);               -- ID 11
+
+-- =================================================================
+-- KHỐI LỆNH MAPPING MỚI (CHẠY SAU KHI ĐÃ THÊM HOT KEYWORDS Ở MỤC 1)
+-- =================================================================
+
+-- KW: áo (Liên kết với TẤT CẢ sản phẩm áo Hot/Bán chạy - Priority 10)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 10
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo'
+  AND p.category_id IN (1, 3) -- Áo Nam (1) & Áo Nữ (3)
+  AND (p.is_hot = TRUE OR p.is_bestseller = TRUE)
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: quần (Liên kết với TẤT CẢ sản phẩm quần Hot/Bán chạy - Priority 10)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 10
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'quần'
+  AND p.category_id IN (2, 4) -- Quần Nam (2) & Quần Nữ (4)
+  AND (p.is_hot = TRUE OR p.is_bestseller = TRUE)
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: áo thun (Chính xác hơn KW "áo" - Priority 15)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo thun'
+  AND p.product_name IN ('Áo Nam A1', 'Áo Nữ AN1')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: áo thun unisex (Rất cụ thể - Priority 20)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 20
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo thun unisex'
+  AND p.product_name IN ('Áo Nam A1', 'Áo Nữ AN1')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: quần jean (Tổng hợp tất cả jean - Priority 15)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'quần jean'
+  AND p.product_name IN ('Quần Nam Q1', 'Quần Nam Q6', 'Quần Nữ QN1', 'Quần Nữ QN6', 'Quần Nam Q9')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: quần jean rách (Cụ thể và ưu tiên cao - Priority 20)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 20
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'quần jean rách'
+  AND p.product_name IN ('Quần Nam Q6', 'Quần Nữ QN6')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: quần tây (Chính xác quần tây - Priority 20)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 20
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'quần tây'
+  AND p.product_name IN ('Quần Nam Q2', 'Quần Nam Q8', 'Quần Nữ QN2')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: áo sơ mi trắng (Rất cụ thể - Priority 20)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 20
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo sơ mi trắng'
+  AND p.product_name IN ('Áo Nam A3', 'Áo Nữ AN2')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: giảm giá 50% (Dựa trên Discount Percent)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'giảm giá 50%'
+  AND p.discount_percent >= 15 -- Lấy các sản phẩm giảm từ 15% trở lên
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: sản phẩm mới (Dựa trên ID cao)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 10
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'sản phẩm mới'
+  AND p.product_id IN (33, 34, 35, 36, 37, 18, 19)
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- KW: best seller (Dựa trên lựa chọn thủ công)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 10
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'best seller'
+  AND p.product_id IN (1, 4, 10, 15, 24, 26, 35)
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+-- Các KW mở rộng còn lại: áo nữ form rộng, quần ống rộng, áo sơ mi công sở, combo siêu rẻ, hoodie nam (Priority 15-20)
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo nữ form rộng'
+  AND p.product_name IN ('Áo Nữ AN1', 'Áo Nữ AN3')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'quần ống rộng'
+  AND p.product_name IN ('Quần Nữ QN1', 'Quần Nam Q1')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'áo sơ mi công sở'
+  AND p.product_name IN ('Áo Nam A3', 'Áo Nữ AN2', 'Áo Nữ AN6')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 15
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'combo siêu rẻ'
+  AND p.product_name IN ('Combo CB1', 'Combo CB2', 'Combo CB3', 'Combo CB5', 'Combo CB6')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);
+
+INSERT INTO Keyword_Product_Mapping (keyword_id, product_id, priority)
+SELECT hk.keyword_id, p.product_id, 20
+FROM Hot_Keywords hk, Products p
+WHERE hk.keyword_text = 'hoodie nam'
+  AND p.product_name IN ('Áo Nam A5')
+ON DUPLICATE KEY UPDATE priority = VALUES(priority);

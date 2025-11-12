@@ -75,8 +75,6 @@ function displayProducts(products) {
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
         };
 
-        // >>> ĐƯỜNG DẪN ĐÚNG THEO YÊU CẦU CỦA BẠN <<<
-        // Format: shopthoitrang/chi_tiet_san_pham.php?product_id=ID
         var correctPath = 'chi_tiet_san_pham.php?product_id=' + product.product_id; 
         
         productHtml += `
